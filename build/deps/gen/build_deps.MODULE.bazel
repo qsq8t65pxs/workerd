@@ -14,7 +14,7 @@ bazel_dep(name = "apple_support", version = "2.5.4")
 bazel_dep(name = "aspect_rules_esbuild", version = "0.25.1")
 
 # aspect_rules_js
-bazel_dep(name = "aspect_rules_js", version = "3.0.3")
+bazel_dep(name = "aspect_rules_js", version = "3.1.1")
 
 # aspect_rules_ts
 bazel_dep(name = "aspect_rules_ts", version = "3.8.9")
@@ -68,7 +68,7 @@ bazel_dep(name = "rules_nodejs", version = "6.7.4")
 bazel_dep(name = "rules_oci", version = "2.3.0")
 
 # rules_python
-bazel_dep(name = "rules_python", version = "2.0.0")
+bazel_dep(name = "rules_python", version = "2.0.1")
 
 # rules_rust
 bazel_dep(name = "rules_rust", version = "0.70.0")
