@@ -1,0 +1,10 @@
+name: Lab Push
+on:
+  push:
+    branches:
+      - dispatch-ref-pr
+jobs:
+  hi:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hello
