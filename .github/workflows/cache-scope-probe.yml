@@ -1,0 +1,31 @@
+name: Cache Scope Probe
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare payload for PR run
+        if: github.event_name == 'pull_request'
+        run: |
+          mkdir -p .cacheprobe
+          printf 'from-pr-run=%s\nfrom-ref=%s\nfrom-sha=%s\n' "$GITHUB_RUN_ID" "$GITHUB_REF" "$GITHUB_SHA" > .cacheprobe/payload.txt
+          cat .cacheprobe/payload.txt
+      - name: Restore/save cache
+        id: cache
+        uses: actions/cache@v5
+        with:
+          path: .cacheprobe
+          key: sc-g-cache-scope-fixed-v1
+      - name: Show result
+        run: |
+          echo "event=$GITHUB_EVENT_NAME"
+          echo "cache-hit=${{ steps.cache.outputs.cache-hit }}"
+          echo "ref=$GITHUB_REF"
+          echo "sha=$GITHUB_SHA"
+          ls -la .cacheprobe || true
+          cat .cacheprobe/payload.txt || true
