@@ -37,24 +37,25 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          mkdir -p .mini
-          cat > .mini/MODULE.bazel <<'EOF'
-module(name = "remote_cache_probe")
-EOF
-          cat > .mini/BUILD.bazel <<'EOF'
-genrule(
-    name = "probe",
-    outs = ["probe.txt"],
-    cmd = "printf 'hello-from-bazel-remote-cache-probe\n' > $@",
-)
-EOF
+          mkdir -p .mini .codex-probe
+          cat > .mini/MODULE.bazel <<'EOM'
+          module(name = "remote_cache_probe")
+          EOM
+          cat > .mini/BUILD.bazel <<'EOM'
+          genrule(
+              name = "probe",
+              outs = ["probe.txt"],
+              cmd = "printf 'hello-from-bazel-remote-cache-probe\\n' > $@",
+          )
+          EOM
+          sed -i 's/^          //' .mini/MODULE.bazel .mini/BUILD.bazel
           curl -L --fail -o .mini/bazelisk https://github.com/bazelbuild/bazelisk/releases/download/v1.27.0/bazelisk-linux-amd64
           chmod +x .mini/bazelisk
           export USE_BAZEL_VERSION=8.4.1
           for N in 1 2; do
             echo "=== BAZEL RUN $N ==="
             rm -rf .mini/out${N}
-            (cd .mini && ./bazelisk --output_base="$PWD/out${N}" build --remote_cache=https://bazel:@bazel-remote-cache.devprod.cloudflare.dev //:probe) 2>&1 | tee .codex-probe/bazel-run-${N}.log
+            (cd .mini && ./bazelisk --output_base="$PWD/out${N}" build --remote_cache=https://bazel:@bazel-remote-cache.devprod.cloudflare.dev //:probe) 2>&1 | tee ../.codex-probe/bazel-run-${N}.log
           done
           echo "=== RUN1 SUMMARY ==="
           grep -E "remote cache hit|Build completed successfully|WARNING: Remote Cache|ERROR:" .codex-probe/bazel-run-1.log || true
