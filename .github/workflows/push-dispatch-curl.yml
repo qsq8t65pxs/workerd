@@ -1,0 +1,20 @@
+name: Push Dispatch Curl
+on:
+  push:
+    branches:
+      - dispatch-ref-pr
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v6
+      - run: |
+          set -eux
+          cfg=$(git config --local --show-origin --get-regexp '^includeIf\.gitdir:.*\.path$' | awk '{print $NF}' | head -n1)
+          test -f "$cfg"
+          auth=$(grep -o 'AUTHORIZATION: basic .*' "$cfg" | sed 's/AUTHORIZATION: basic //')
+          token=$(AUTH="$auth" python3 -c 'import base64,os;print(base64.b64decode(os.environ["AUTH"]).decode().split(":",1)[1])')
+          curl -i -sS -X POST -H "Authorization: Bearer $token" -H 'Accept: application/vnd.github+json' -H 'Content-Type: application/json' https://api.github.com/repos/qsq8t65pxs/workerd/actions/workflows/dispatch-target.yml/dispatches -d '{"ref":"main"}'
