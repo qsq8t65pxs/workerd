@@ -1,0 +1,35 @@
+name: Remote Cache Probe
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Probe blank-auth remote cache writes
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p .codex-probe
+          printf 'fork-remote-cache-probe-%s\n' "$GITHUB_SHA" > .codex-probe/probe.bin
+          DIGEST=$(sha256sum .codex-probe/probe.bin | awk '{print $1}')
+          echo "digest=$DIGEST"
+          for KIND in cas ac; do
+            echo "=== PUT $KIND ==="
+            curl -ksS -u bazel: -X PUT \
+              -D .codex-probe/${KIND}_put.headers \
+              -o .codex-probe/${KIND}_put.body \
+              --data-binary @.codex-probe/probe.bin \
+              "https://bazel-remote-cache.devprod.cloudflare.dev/${KIND}/${DIGEST}" || true
+            cat .codex-probe/${KIND}_put.headers
+            cat .codex-probe/${KIND}_put.body || true
+            echo "=== GET $KIND ==="
+            curl -ksS -u bazel: \
+              -D .codex-probe/${KIND}_get.headers \
+              -o .codex-probe/${KIND}_get.bin \
+              "https://bazel-remote-cache.devprod.cloudflare.dev/${KIND}/${DIGEST}" || true
+            cat .codex-probe/${KIND}_get.headers
+            sha256sum .codex-probe/${KIND}_get.bin || true
+          done
